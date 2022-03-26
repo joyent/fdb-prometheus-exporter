@@ -2,16 +2,13 @@ package main
 
 import (
 	"encoding/json"
-	"fmt"
-	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
-	"os/exec"
 	"strconv"
 	"time"
 
-	"github.com/PierreZ/fdb-prometheus-exporter/models"
+	"github.com/joyent/fdb-prometheus-exporter/models"
 	"github.com/apple/foundationdb/bindings/go/src/fdb"
 	"github.com/pkg/errors"
 	"github.com/prometheus/client_golang/prometheus"
@@ -32,26 +29,17 @@ func main() {
 	// Different API versions may expose different runtime behaviors.
 	fdb.MustAPIVersion(apiVersion)
 
-	clusterFile := getEnv("FDB_CLUSTER_FILE", "/var/fdb/data/fdb.cluster")
-
-	if _, exists := os.LookupEnv("FDB_CREATE_CLUSTER_FILE"); exists {
-		createClusterFile()
-	}
-
-	fmt.Println("opening cluster file at", clusterFile)
-	data, err := ioutil.ReadFile(clusterFile)
-	if err != nil {
-		log.Fatalf("cannot read cluster file: %+v", err)
-	}
-	fmt.Println(string(data))
+	clusterFile := getEnv("FDB_CLUSTER_FILE", "/etc/foundationdb/fdb.cluster")
 
 	// Open the default database from the system cluster
+	log.Println("opening cluster file at", clusterFile)
 	db = fdb.MustOpenDatabase(clusterFile)
 
 	exportWorkload, err := strconv.ParseBool(getEnv("FDB_EXPORT_WORKLOAD", "true"))
 	if err != nil {
 		log.Fatal("cannot parse FDB_EXPORT_WORLOAD from env")
 	}
+
 	exportDatabaseStatus, err := strconv.ParseBool(getEnv("FDB_EXPORT_DATABASE_STATUS", "true"))
 	if err != nil {
 		log.Fatal("cannot parse FDB_EXPORT_DATABASE_STATUS from env")
@@ -61,6 +49,7 @@ func main() {
 	if err != nil {
 		log.Fatal("cannot parse FDB_EXPORT_CONFIGURATION from env")
 	}
+
 	exportProcesses, err := strconv.ParseBool(getEnv("FDB_EXPORT_PROCESSES", "true"))
 	if err != nil {
 		log.Fatal("cannot parse FDB_EXPORT_PROCESSES from env")
@@ -78,11 +67,11 @@ func main() {
 			//Call the periodic function here.
 			models, err := retrieveMetrics()
 			if err != nil {
-				fmt.Errorf("cannot retrieve metrics from FDB: (%v)", err)
+				log.Printf("cannot retrieve metrics from FDB: (%v)\n", err)
 				continue
 			}
 
-			fmt.Println("retrieved data")
+			log.Println("retrieved fdb data")
 
 			if exportWorkload {
 				models.ExportWorkload()
@@ -139,13 +128,3 @@ func getEnv(key, fallback string) string {
 	return value
 }
 
-func createClusterFile() {
-	cmd := exec.Command("/create_cluster_file.bash")
-
-	fmt.Printf("Running command 'create_cluster_file' and waiting for it to finish...\n")
-	stdoutStderr, err := cmd.CombinedOutput()
-	fmt.Printf("%s\n", stdoutStderr)
-	if err != nil {
-		log.Fatal(err)
-	}
-}

@@ -1,7 +1,7 @@
 package models
 
 import (
-	"fmt"
+	"log"
 
 	"github.com/prometheus/client_golang/prometheus"
 )
@@ -76,5 +76,5 @@ func registerWorkload(r *prometheus.Registry) {
 	r.MustRegister(workloadOperationCounter)
 	r.MustRegister(workloadTransactionHZ)
 	r.MustRegister(workloadTransactionCounter)
-	fmt.Println("registered workload metrics")
+	log.Println("registered workload metrics")
 }
